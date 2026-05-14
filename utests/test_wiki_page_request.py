@@ -7,7 +7,7 @@ requests = pytest.importorskip("requests")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import Wiki_Page_Request as wiki
+import Wiki_Page_Request.Wiki_Page_Request as wiki
 
 
 class FakeResponse:
@@ -44,7 +44,9 @@ def test_search_wikipedia_returns_titles_and_ignores_malformed_results(monkeypat
 
     monkeypatch.setattr(wiki.requests, "get", fake_get)
 
-    assert wiki.search_wikipedia("Arrival") == ["Arrival", "Arrival (film)"]
+    requester = wiki.WikipediaMovieRequester()
+
+    assert requester.search_wikipedia("Arrival") == ["Arrival", "Arrival (film)"]
 
 
 def test_search_wikipedia_returns_empty_list_on_request_error(monkeypatch):
@@ -53,7 +55,9 @@ def test_search_wikipedia_returns_empty_list_on_request_error(monkeypatch):
 
     monkeypatch.setattr(wiki.requests, "get", fake_get)
 
-    assert wiki.search_wikipedia("Anything") == []
+    requester = wiki.WikipediaMovieRequester()
+
+    assert requester.search_wikipedia("Anything") == []
 
 
 def test_get_page_data_returns_page_for_existing_title(monkeypatch):
@@ -69,7 +73,9 @@ def test_get_page_data_returns_page_for_existing_title(monkeypatch):
 
     monkeypatch.setattr(wiki.requests, "get", fake_get)
 
-    assert wiki.get_page_data("Arrival") == page
+    requester = wiki.WikipediaMovieRequester()
+
+    assert requester.get_page_data("Arrival") == page
 
 
 def test_get_page_data_returns_none_for_empty_or_missing_pages(monkeypatch):
@@ -78,7 +84,9 @@ def test_get_page_data_returns_none_for_empty_or_missing_pages(monkeypatch):
         "get",
         lambda url, params, headers, timeout: FakeResponse(text=""),
     )
-    assert wiki.get_page_data("Empty response") is None
+    requester = wiki.WikipediaMovieRequester()
+
+    assert requester.get_page_data("Empty response") is None
 
     monkeypatch.setattr(
         wiki.requests,
@@ -87,7 +95,7 @@ def test_get_page_data_returns_none_for_empty_or_missing_pages(monkeypatch):
             {"query": {"pages": {"-1": {"missing": ""}}}}
         ),
     )
-    assert wiki.get_page_data("Missing page") is None
+    assert requester.get_page_data("Missing page") is None
 
 
 def test_is_film_detects_wikidata_film_instance(monkeypatch):
@@ -113,11 +121,15 @@ def test_is_film_detects_wikidata_film_instance(monkeypatch):
 
     monkeypatch.setattr(wiki.requests, "get", fake_get)
 
-    assert wiki.is_film("Q204057") is True
+    requester = wiki.WikipediaMovieRequester()
+
+    assert requester.is_film("Q204057") is True
 
 
 def test_is_film_returns_false_for_missing_id_or_non_film(monkeypatch):
-    assert wiki.is_film(None) is False
+    requester = wiki.WikipediaMovieRequester()
+
+    assert requester.is_film(None) is False
 
     monkeypatch.setattr(
         wiki.requests,
@@ -141,7 +153,7 @@ def test_is_film_returns_false_for_missing_id_or_non_film(monkeypatch):
         ),
     )
 
-    assert wiki.is_film("QNotFilm") is False
+    assert requester.is_film("QNotFilm") is False
 
 
 def test_get_image_url_returns_url_and_handles_missing_imageinfo(monkeypatch):
@@ -152,9 +164,11 @@ def test_get_image_url_returns_url_and_handles_missing_imageinfo(monkeypatch):
             {"query": {"pages": {"1": {"imageinfo": [{"url": "https://img.test/a.jpg"}]}}}}
         ),
     )
-    assert wiki.get_image_url("Poster.jpg") == "https://img.test/a.jpg"
+    requester = wiki.WikipediaMovieRequester()
 
-    assert wiki.get_image_url(None) is None
+    assert requester.get_image_url("Poster.jpg") == "https://img.test/a.jpg"
+
+    assert requester.get_image_url(None) is None
 
     monkeypatch.setattr(
         wiki.requests,
@@ -163,13 +177,14 @@ def test_get_image_url_returns_url_and_handles_missing_imageinfo(monkeypatch):
             {"query": {"pages": {"1": {}}}}
         ),
     )
-    assert wiki.get_image_url("NoImageInfo.jpg") is None
+    assert requester.get_image_url("NoImageInfo.jpg") is None
 
 
 def test_get_movie_info_uses_first_candidate_that_is_a_film(monkeypatch):
     calls = []
 
-    monkeypatch.setattr(wiki, "search_wikipedia", lambda title: ["Novel", "Movie"])
+    requester = wiki.WikipediaMovieRequester()
+    monkeypatch.setattr(requester, "search_wikipedia", lambda title: ["Novel", "Movie"])
 
     def fake_get_page_data(title):
         calls.append(title)
@@ -187,11 +202,11 @@ def test_get_movie_info_uses_first_candidate_that_is_a_film(monkeypatch):
         }
         return pages.get(title)
 
-    monkeypatch.setattr(wiki, "get_page_data", fake_get_page_data)
-    monkeypatch.setattr(wiki, "is_film", lambda wikidata_id: wikidata_id == "QFilm")
-    monkeypatch.setattr(wiki, "get_image_url", lambda filename: f"https://img/{filename}")
+    monkeypatch.setattr(requester, "get_page_data", fake_get_page_data)
+    monkeypatch.setattr(requester, "is_film", lambda wikidata_id: wikidata_id == "QFilm")
+    monkeypatch.setattr(requester, "get_image_url", lambda filename: f"https://img/{filename}")
 
-    result = wiki.get_movie_info("Dune")
+    result = requester.get_movie_info("Dune")
 
     assert calls == ["Dune (film)"]
     assert result == {
@@ -204,19 +219,22 @@ def test_get_movie_info_uses_first_candidate_that_is_a_film(monkeypatch):
 
 
 def test_get_movie_info_returns_none_when_no_candidate_is_a_film(monkeypatch):
-    monkeypatch.setattr(wiki, "search_wikipedia", lambda title: ["Book"])
+    requester = wiki.WikipediaMovieRequester()
+    monkeypatch.setattr(requester, "search_wikipedia", lambda title: ["Book"])
     monkeypatch.setattr(
-        wiki,
+        requester,
         "get_page_data",
         lambda title: {"title": title, "pageprops": {"wikibase_item": "QBook"}},
     )
-    monkeypatch.setattr(wiki, "is_film", lambda wikidata_id: False)
+    monkeypatch.setattr(requester, "is_film", lambda wikidata_id: False)
 
-    assert wiki.get_movie_info("Something") is None
+    assert requester.get_movie_info("Something") is None
 
 
 def test_format_movie_info_includes_all_cached_fields_and_fallbacks():
-    formatted = wiki.format_movie_info(
+    requester = wiki.WikipediaMovieRequester()
+
+    formatted = requester.format_movie_info(
         {
             "title": "Arrival",
             "search_term": "arrival",
@@ -233,7 +251,7 @@ def test_format_movie_info_includes_all_cached_fields_and_fallbacks():
     assert "Thumbnail:   https://img.test/arrival.jpg" in formatted
     assert "A linguist works" in formatted
 
-    fallback = wiki.format_movie_info({})
+    fallback = requester.format_movie_info({})
 
     assert "Unknown title" in fallback
     assert "No summary available." in fallback
