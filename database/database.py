@@ -1,12 +1,16 @@
+"""SQLite cache storage for movie metadata.
+
+This module contains the cache class used by the Wikipedia requester. The cache
+stores successful lookups by the original search term so repeated requests from
+Kodi or the command line do not need to hit Wikipedia again.
+"""
+
 import logging
 import sqlite3
 import time
 from contextlib import closing
 from pathlib import Path
 
-# ==========================================
-# KONFIGURATION & SQL-KONSTANTEN
-# ==========================================
 DB_NAME = Path(__file__).resolve().parents[1] / "wikipedia_cache.db"
 
 SQL_CREATE_TABLE = """
@@ -21,7 +25,14 @@ CREATE TABLE IF NOT EXISTS movie_cache (
 """
 
 SQL_UPSERT_MOVIE = """
-INSERT OR REPLACE INTO movie_cache (search_term, wikidata_id, title, summary, thumbnail, last_updated)
+INSERT OR REPLACE INTO movie_cache (
+    search_term,
+    wikidata_id,
+    title,
+    summary,
+    thumbnail,
+    last_updated
+)
 VALUES (?, ?, ?, ?, ?, ?);
 """
 
@@ -41,16 +52,32 @@ class MovieCacheDatabase:
     """SQLite cache for movie data returned by the Wikipedia requester."""
 
     def __init__(self, db_name=DB_NAME):
+        """Initialize the cache wrapper.
+
+        Args:
+            db_name: Path to the SQLite database file. Defaults to the project
+                root cache file.
+        """
         self.db_name = Path(db_name)
 
     def get_connection(self):
-        """Erstellt eine threadsichere Verbindung mit Timeout."""
-        return sqlite3.connect(str(self.db_name), timeout=10.0, check_same_thread=False)
+        """Create a SQLite connection with a short busy timeout.
+
+        Returns:
+            sqlite3.Connection: Open connection to the configured cache file.
+        """
+        return sqlite3.connect(
+            str(self.db_name),
+            timeout=10.0,
+            check_same_thread=False,
+        )
 
     def init_db(self):
-        """Erstellt die Datenbankdatei und die Tabelle, falls sie nicht existieren."""
+        """Create the database file and table if they do not already exist."""
         try:
             with closing(self.get_connection()) as conn:
+                # WAL improves read/write behavior when Kodi or tests open
+                # short-lived connections close together in time.
                 conn.isolation_level = None
                 conn.execute("PRAGMA journal_mode=WAL;")
                 conn.isolation_level = ""
@@ -62,9 +89,15 @@ class MovieCacheDatabase:
             logging.error(f"Datenbankfehler bei der Initialisierung: {e}")
 
     def save_movie_to_db(self, search_term, movie_info):
-        """
-        Speichert oder aktualisiert einen Film im Cache.
-        Erfordert nun zwingend den Suchbegriff als Schlüssel.
+        """Save or update a movie cache entry.
+
+        Args:
+            search_term: Original user/Kodi search term. Used as the cache key.
+            movie_info: Movie metadata dictionary returned by the requester.
+
+        Returns:
+            bool: True when the entry was saved, False for invalid input or a
+            database error.
         """
         if not search_term or not movie_info or not movie_info.get("title"):
             return False
@@ -74,21 +107,31 @@ class MovieCacheDatabase:
         try:
             with closing(self.get_connection()) as conn:
                 with conn:
-                    conn.execute(SQL_UPSERT_MOVIE, (
-                        search_term,
-                        movie_info.get("wikidata_id"),
-                        movie_info.get("title"),
-                        movie_info.get("summary"),
-                        movie_info.get("thumbnail"),
-                        current_time
-                    ))
+                    conn.execute(
+                        SQL_UPSERT_MOVIE,
+                        (
+                            search_term,
+                            movie_info.get("wikidata_id"),
+                            movie_info.get("title"),
+                            movie_info.get("summary"),
+                            movie_info.get("thumbnail"),
+                            current_time,
+                        ),
+                    )
             return True
         except sqlite3.Error as e:
             logging.error(f"Fehler beim Speichern in den Cache: {e}")
             return False
 
     def get_movie_from_db(self, search_term):
-        """Ruft einen Film anhand des Suchbegriffs (Input von Kodi) aus dem Cache ab."""
+        """Load a movie cache entry by search term.
+
+        Args:
+            search_term: Original user/Kodi search term.
+
+        Returns:
+            dict | None: Cached movie metadata, or None when no entry exists.
+        """
         if not search_term:
             return None
 
@@ -104,7 +147,7 @@ class MovieCacheDatabase:
                         "title": result[1],
                         "summary": result[2],
                         "thumbnail": result[3],
-                        "search_term": search_term
+                        "search_term": search_term,
                     }
             return None
         except sqlite3.Error as e:
@@ -112,7 +155,11 @@ class MovieCacheDatabase:
             return None
 
     def cleanup_cache(self, days_to_keep=30):
-        """Löscht Einträge, die älter als die angegebene Anzahl an Tagen sind."""
+        """Delete cache entries older than the configured age.
+
+        Args:
+            days_to_keep: Number of days a cache entry should remain valid.
+        """
         seconds_to_keep = days_to_keep * 24 * 60 * 60
         cutoff_time = int(time.time()) - seconds_to_keep
 

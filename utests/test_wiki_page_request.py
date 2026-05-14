@@ -1,3 +1,5 @@
+"""Unit tests for the Wikipedia movie requester package."""
+
 from pathlib import Path
 import sys
 
@@ -11,16 +13,27 @@ import Wiki_Page_Request.Wiki_Page_Request as wiki
 
 
 class FakeResponse:
+    """Small requests.Response test double used by requester tests."""
+
     def __init__(self, payload=None, text="response body", error=None):
+        """Create a fake HTTP response.
+
+        Args:
+            payload: JSON-compatible value returned from ``json()``.
+            text: Raw response text used by empty-response checks.
+            error: Exception raised by ``raise_for_status()``.
+        """
         self.payload = payload or {}
         self.text = text
         self.error = error
 
     def raise_for_status(self):
+        """Raise the configured HTTP error, if any."""
         if self.error:
             raise self.error
 
     def json(self):
+        """Return the configured JSON payload."""
         return self.payload
 
 
@@ -161,7 +174,15 @@ def test_get_image_url_returns_url_and_handles_missing_imageinfo(monkeypatch):
         wiki.requests,
         "get",
         lambda url, params, headers, timeout: FakeResponse(
-            {"query": {"pages": {"1": {"imageinfo": [{"url": "https://img.test/a.jpg"}]}}}}
+            {
+                "query": {
+                    "pages": {
+                        "1": {
+                            "imageinfo": [{"url": "https://img.test/a.jpg"}]
+                        }
+                    }
+                }
+            }
         ),
     )
     requester = wiki.WikipediaMovieRequester()
@@ -204,7 +225,11 @@ def test_get_movie_info_uses_first_candidate_that_is_a_film(monkeypatch):
 
     monkeypatch.setattr(requester, "get_page_data", fake_get_page_data)
     monkeypatch.setattr(requester, "is_film", lambda wikidata_id: wikidata_id == "QFilm")
-    monkeypatch.setattr(requester, "get_image_url", lambda filename: f"https://img/{filename}")
+    monkeypatch.setattr(
+        requester,
+        "get_image_url",
+        lambda filename: f"https://img/{filename}",
+    )
 
     result = requester.get_movie_info("Dune")
 

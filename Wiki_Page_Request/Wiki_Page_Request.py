@@ -1,3 +1,10 @@
+"""Wikipedia and Wikidata movie lookup client.
+
+The requester searches Wikipedia for a title, confirms candidates through
+Wikidata, fetches a short summary and thumbnail URL, then optionally stores the
+result in the SQLite cache.
+"""
+
 import logging
 import sys
 import textwrap
@@ -6,6 +13,8 @@ from pathlib import Path
 import requests
 
 if __package__ in (None, ""):
+    # Direct execution from inside this package removes the project root from
+    # sys.path. Add it back so `from database import ...` still works.
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from database import MovieCacheDatabase
@@ -21,11 +30,28 @@ class WikipediaMovieRequester:
     """Fetches movie information from Wikipedia/Wikidata and formats it for display."""
 
     def __init__(self, cache=None, wiki_api_url=WIKI_API_URL, headers=None):
+        """Initialize the requester.
+
+        Args:
+            cache: Cache object compatible with MovieCacheDatabase. A default
+                cache is created when none is provided.
+            wiki_api_url: Wikipedia API endpoint to query.
+            headers: HTTP headers used for Wikipedia and Wikidata requests.
+        """
         self.cache = cache or MovieCacheDatabase()
         self.wiki_api_url = wiki_api_url
         self.headers = headers or HEADERS
 
     def search_wikipedia(self, title):
+        """Search Wikipedia for candidate page titles.
+
+        Args:
+            title: Movie title or search phrase.
+
+        Returns:
+            list[str]: Candidate Wikipedia page titles. Returns an empty list
+            when the request fails or the response is malformed.
+        """
         params = {
             "action": "query",
             "format": "json",
@@ -35,7 +61,12 @@ class WikipediaMovieRequester:
         }
 
         try:
-            response = requests.get(self.wiki_api_url, params=params, headers=self.headers, timeout=10)
+            response = requests.get(
+                self.wiki_api_url,
+                params=params,
+                headers=self.headers,
+                timeout=10,
+            )
             response.raise_for_status()
             data = response.json()
         except (requests.RequestException, ValueError) as e:
@@ -46,6 +77,15 @@ class WikipediaMovieRequester:
         return [r["title"] for r in results if "title" in r]
 
     def get_page_data(self, title):
+        """Fetch summary, image, and Wikidata metadata for a Wikipedia page.
+
+        Args:
+            title: Exact Wikipedia page title.
+
+        Returns:
+            dict | None: Raw Wikipedia page data, or None when the page is
+            missing/unavailable.
+        """
         params = {
             "action": "query",
             "format": "json",
@@ -57,7 +97,12 @@ class WikipediaMovieRequester:
         }
 
         try:
-            response = requests.get(self.wiki_api_url, params=params, headers=self.headers, timeout=10)
+            response = requests.get(
+                self.wiki_api_url,
+                params=params,
+                headers=self.headers,
+                timeout=10,
+            )
             response.raise_for_status()
 
             if not response.text.strip():
@@ -80,6 +125,14 @@ class WikipediaMovieRequester:
         return page
 
     def is_film(self, wikidata_id):
+        """Check whether a Wikidata entity is a film.
+
+        Args:
+            wikidata_id: Wikidata entity ID, such as ``Q204057``.
+
+        Returns:
+            bool: True if the entity has an "instance of film" claim.
+        """
         if not wikidata_id:
             return False
 
@@ -92,10 +145,10 @@ class WikipediaMovieRequester:
 
             claims = data["entities"][wikidata_id]["claims"]
 
-            # P31 = instance of
+            # P31 means "instance of" in Wikidata; Q11424 is "film".
             for claim in claims.get("P31", []):
                 value = claim["mainsnak"].get("datavalue", {}).get("value", {})
-                if value.get("id") == "Q11424":  # Q11424 is the identifier for films
+                if value.get("id") == "Q11424":
                     return True
 
         except (requests.RequestException, ValueError, KeyError, TypeError) as e:
@@ -104,6 +157,15 @@ class WikipediaMovieRequester:
         return False
 
     def get_movie_info(self, title):
+        """Find the best matching film page and return normalized movie data.
+
+        Args:
+            title: Movie title entered by the user.
+
+        Returns:
+            dict | None: Normalized movie data with title, summary, thumbnail,
+            and Wikidata ID. Returns None when no film candidate is found.
+        """
         candidates = [f"{title} (film)"] + self.search_wikipedia(title)
 
         for candidate in candidates:
@@ -121,12 +183,20 @@ class WikipediaMovieRequester:
                     "title": page.get("title"),
                     "summary": page.get("extract"),
                     "thumbnail": self.get_image_url(pageprops.get("page_image")),
-                    "wikidata_id": wikidata_id
+                    "wikidata_id": wikidata_id,
                 }
 
         return None
 
     def get_image_url(self, filename):
+        """Resolve a Wikipedia image filename to a public image URL.
+
+        Args:
+            filename: Wikipedia page image filename.
+
+        Returns:
+            str | None: Public image URL, or None when no image is available.
+        """
         if not filename:
             return None
 
@@ -138,10 +208,10 @@ class WikipediaMovieRequester:
                     "format": "json",
                     "titles": f"File:{filename}",
                     "prop": "imageinfo",
-                    "iiprop": "url"
+                    "iiprop": "url",
                 },
                 headers=self.headers,
-                timeout=10
+                timeout=10,
             )
             response.raise_for_status()
             data = response.json()
@@ -150,11 +220,25 @@ class WikipediaMovieRequester:
 
             imageinfo = page.get("imageinfo") or [{}]
             return imageinfo[0].get("url")
-        except (requests.RequestException, ValueError, StopIteration, KeyError, TypeError) as e:
+        except (
+            requests.RequestException,
+            ValueError,
+            StopIteration,
+            KeyError,
+            TypeError,
+        ) as e:
             logging.error(f"Wikipedia image request failed: {e}")
             return None
 
     def format_movie_info(self, movie_info):
+        """Format movie metadata for console output.
+
+        Args:
+            movie_info: Movie metadata dictionary from the cache or requester.
+
+        Returns:
+            str: Human-readable movie details block.
+        """
         title = movie_info.get("title") or "Unknown title"
         summary = movie_info.get("summary") or "No summary available."
         thumbnail = movie_info.get("thumbnail") or "No thumbnail available."
@@ -178,6 +262,7 @@ Summary:
 """.strip()
 
     def run_cli(self):
+        """Run the interactive command-line lookup flow."""
         self.cache.init_db()
         movie_title = input("Enter movie title: ")
 

@@ -1,3 +1,5 @@
+"""Unit tests for the movie cache database package."""
+
 from pathlib import Path
 import sqlite3
 import sys
@@ -8,6 +10,7 @@ from database import SQL_UPSERT_MOVIE, MovieCacheDatabase
 
 
 def use_temp_db(monkeypatch, tmp_path):
+    """Create a cache instance backed by a pytest temporary database file."""
     db_path = tmp_path / "test_wikipedia_cache.db"
     db = MovieCacheDatabase(db_path)
     db.init_db()

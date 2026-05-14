@@ -1,3 +1,5 @@
+"""Public exports for the database package."""
+
 from .database import (
     DB_NAME,
     SQL_CLEANUP_CACHE,

@@ -1,3 +1,5 @@
+"""Public exports for the Wikipedia movie requester package."""
+
 from .Wiki_Page_Request import (
     HEADERS,
     WIKI_API_URL,
