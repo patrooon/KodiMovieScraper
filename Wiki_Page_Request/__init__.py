@@ -1,13 +1,15 @@
 """Public exports for the Wikipedia movie requester package."""
 
-from .Wiki_Page_Request import (
+from .wiki_page_request import (
     HEADERS,
     WIKI_API_URL,
+    WikipediaRequestConfig,
     WikipediaMovieRequester,
 )
 
 __all__ = [
     "HEADERS",
     "WIKI_API_URL",
+    "WikipediaRequestConfig",
     "WikipediaMovieRequester",
 ]

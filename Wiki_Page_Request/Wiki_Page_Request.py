@@ -8,7 +8,10 @@ result in the SQLite cache.
 import logging
 import sys
 import textwrap
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -26,23 +29,46 @@ HEADERS = {
 }
 
 
+@dataclass(frozen=True)
+class WikipediaRequestConfig:
+    """Configuration for Wikipedia and Wikidata HTTP requests."""
+
+    wiki_api_url: str = WIKI_API_URL
+    headers: Mapping[str, str] = field(default_factory=lambda: dict(HEADERS))
+    timeout: float = 10.0
+
+
 class WikipediaMovieRequester:
     """Fetches movie information from Wikipedia/Wikidata and formats it for display."""
 
-    def __init__(self, cache=None, wiki_api_url=WIKI_API_URL, headers=None):
+    def __init__(
+        self,
+        cache: MovieCacheDatabase | None = None,
+        config: WikipediaRequestConfig | None = None,
+        wiki_api_url: str | None = None,
+        headers: Mapping[str, str] | None = None,
+        timeout: float | None = None,
+    ) -> None:
         """Initialize the requester.
 
         Args:
             cache: Cache object compatible with MovieCacheDatabase. A default
                 cache is created when none is provided.
-            wiki_api_url: Wikipedia API endpoint to query.
-            headers: HTTP headers used for Wikipedia and Wikidata requests.
+            config: Request configuration. Constructor keyword overrides below
+                are applied on top of this config when provided.
+            wiki_api_url: Optional Wikipedia API endpoint override.
+            headers: Optional HTTP headers override.
+            timeout: Optional request timeout override, in seconds.
         """
         self.cache = cache or MovieCacheDatabase()
-        self.wiki_api_url = wiki_api_url
-        self.headers = headers or HEADERS
+        request_config = config or WikipediaRequestConfig()
+        self.config = WikipediaRequestConfig(
+            wiki_api_url=wiki_api_url or request_config.wiki_api_url,
+            headers=headers or request_config.headers,
+            timeout=timeout if timeout is not None else request_config.timeout,
+        )
 
-    def search_wikipedia(self, title):
+    def search_wikipedia(self, title: str) -> list[str]:
         """Search Wikipedia for candidate page titles.
 
         Args:
@@ -62,10 +88,10 @@ class WikipediaMovieRequester:
 
         try:
             response = requests.get(
-                self.wiki_api_url,
+                self.config.wiki_api_url,
                 params=params,
-                headers=self.headers,
-                timeout=10,
+                headers=self.config.headers,
+                timeout=self.config.timeout,
             )
             response.raise_for_status()
             data = response.json()
@@ -76,7 +102,7 @@ class WikipediaMovieRequester:
         results = data.get("query", {}).get("search", [])
         return [r["title"] for r in results if "title" in r]
 
-    def get_page_data(self, title):
+    def get_page_data(self, title: str) -> dict[str, Any] | None:
         """Fetch summary, image, and Wikidata metadata for a Wikipedia page.
 
         Args:
@@ -98,10 +124,10 @@ class WikipediaMovieRequester:
 
         try:
             response = requests.get(
-                self.wiki_api_url,
+                self.config.wiki_api_url,
                 params=params,
-                headers=self.headers,
-                timeout=10,
+                headers=self.config.headers,
+                timeout=self.config.timeout,
             )
             response.raise_for_status()
 
@@ -124,7 +150,7 @@ class WikipediaMovieRequester:
 
         return page
 
-    def is_film(self, wikidata_id):
+    def is_film(self, wikidata_id: str | None) -> bool:
         """Check whether a Wikidata entity is a film.
 
         Args:
@@ -139,7 +165,11 @@ class WikipediaMovieRequester:
         url = f"https://www.wikidata.org/wiki/Special:EntityData/{wikidata_id}.json"
 
         try:
-            response = requests.get(url, headers=self.headers, timeout=10)
+            response = requests.get(
+                url,
+                headers=self.config.headers,
+                timeout=self.config.timeout,
+            )
             response.raise_for_status()
             data = response.json()
 
@@ -156,7 +186,7 @@ class WikipediaMovieRequester:
 
         return False
 
-    def get_movie_info(self, title):
+    def get_movie_info(self, title: str) -> dict[str, Any] | None:
         """Find the best matching film page and return normalized movie data.
 
         Args:
@@ -188,7 +218,7 @@ class WikipediaMovieRequester:
 
         return None
 
-    def get_image_url(self, filename):
+    def get_image_url(self, filename: str | None) -> str | None:
         """Resolve a Wikipedia image filename to a public image URL.
 
         Args:
@@ -202,7 +232,7 @@ class WikipediaMovieRequester:
 
         try:
             response = requests.get(
-                self.wiki_api_url,
+                self.config.wiki_api_url,
                 params={
                     "action": "query",
                     "format": "json",
@@ -210,8 +240,8 @@ class WikipediaMovieRequester:
                     "prop": "imageinfo",
                     "iiprop": "url",
                 },
-                headers=self.headers,
-                timeout=10,
+                headers=self.config.headers,
+                timeout=self.config.timeout,
             )
             response.raise_for_status()
             data = response.json()
@@ -230,7 +260,7 @@ class WikipediaMovieRequester:
             logging.error(f"Wikipedia image request failed: {e}")
             return None
 
-    def format_movie_info(self, movie_info):
+    def format_movie_info(self, movie_info: Mapping[str, Any]) -> str:
         """Format movie metadata for console output.
 
         Args:
@@ -261,7 +291,7 @@ Summary:
 ============================================================
 """.strip()
 
-    def run_cli(self):
+    def run_cli(self) -> None:
         """Run the interactive command-line lookup flow."""
         self.cache.init_db()
         movie_title = input("Enter movie title: ")
@@ -278,4 +308,5 @@ Summary:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     WikipediaMovieRequester().run_cli()

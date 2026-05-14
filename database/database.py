@@ -9,7 +9,9 @@ import logging
 import sqlite3
 import time
 from contextlib import closing
+from os import PathLike
 from pathlib import Path
+from typing import Any
 
 DB_NAME = Path(__file__).resolve().parents[1] / "wikipedia_cache.db"
 
@@ -51,7 +53,7 @@ WHERE last_updated < ?;
 class MovieCacheDatabase:
     """SQLite cache for movie data returned by the Wikipedia requester."""
 
-    def __init__(self, db_name=DB_NAME):
+    def __init__(self, db_name: str | PathLike[str] = DB_NAME) -> None:
         """Initialize the cache wrapper.
 
         Args:
@@ -60,7 +62,7 @@ class MovieCacheDatabase:
         """
         self.db_name = Path(db_name)
 
-    def get_connection(self):
+    def get_connection(self) -> sqlite3.Connection:
         """Create a SQLite connection with a short busy timeout.
 
         Returns:
@@ -72,7 +74,7 @@ class MovieCacheDatabase:
             check_same_thread=False,
         )
 
-    def init_db(self):
+    def init_db(self) -> None:
         """Create the database file and table if they do not already exist."""
         try:
             with closing(self.get_connection()) as conn:
@@ -86,9 +88,13 @@ class MovieCacheDatabase:
                     conn.execute(SQL_CREATE_TABLE)
 
         except sqlite3.Error as e:
-            logging.error(f"Datenbankfehler bei der Initialisierung: {e}")
+            logging.error(f"Database initialization failed: {e}")
 
-    def save_movie_to_db(self, search_term, movie_info):
+    def save_movie_to_db(
+        self,
+        search_term: str,
+        movie_info: dict[str, Any] | None,
+    ) -> bool:
         """Save or update a movie cache entry.
 
         Args:
@@ -120,10 +126,10 @@ class MovieCacheDatabase:
                     )
             return True
         except sqlite3.Error as e:
-            logging.error(f"Fehler beim Speichern in den Cache: {e}")
+            logging.error(f"Failed to save movie to cache: {e}")
             return False
 
-    def get_movie_from_db(self, search_term):
+    def get_movie_from_db(self, search_term: str) -> dict[str, Any] | None:
         """Load a movie cache entry by search term.
 
         Args:
@@ -151,10 +157,10 @@ class MovieCacheDatabase:
                     }
             return None
         except sqlite3.Error as e:
-            logging.error(f"Fehler beim Lesen aus dem Cache: {e}")
+            logging.error(f"Failed to read movie from cache: {e}")
             return None
 
-    def cleanup_cache(self, days_to_keep=30):
+    def cleanup_cache(self, days_to_keep: int = 30) -> None:
         """Delete cache entries older than the configured age.
 
         Args:
@@ -168,4 +174,4 @@ class MovieCacheDatabase:
                 with conn:
                     conn.execute(SQL_CLEANUP_CACHE, (cutoff_time,))
         except sqlite3.Error as e:
-            logging.error(f"Fehler bei der Cache-Bereinigung: {e}")
+            logging.error(f"Cache cleanup failed: {e}")

@@ -9,7 +9,7 @@ requests = pytest.importorskip("requests")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import Wiki_Page_Request.Wiki_Page_Request as wiki
+import wiki_page_request.wiki_page_request as wiki
 
 
 class FakeResponse:
