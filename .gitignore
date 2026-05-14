@@ -1,3 +1,21 @@
-/.idea
-/venv
-/wikipedia_cache.db
+# IDE/editor files
+.idea/
+.vscode/
+
+# Virtual environments
+.venv/
+venv/
+
+# Python cache and tooling output
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Local runtime cache database
+wikipedia_cache.db
+wikipedia_cache.db-shm
+wikipedia_cache.db-wal
+
+*.egg-info/
+

@@ -8,6 +8,7 @@ Kodi or the command line do not need to hit Wikipedia again.
 import logging
 import sqlite3
 import time
+from collections.abc import Mapping
 from contextlib import closing
 from os import PathLike
 from pathlib import Path
@@ -90,10 +91,10 @@ class MovieCacheDatabase:
         except sqlite3.Error as e:
             logging.error(f"Database initialization failed: {e}")
 
-    def save_movie_to_db(
+    def save_movie(
         self,
         search_term: str,
-        movie_info: dict[str, Any] | None,
+        movie_info: Mapping[str, Any] | None,
     ) -> bool:
         """Save or update a movie cache entry.
 
@@ -129,7 +130,7 @@ class MovieCacheDatabase:
             logging.error(f"Failed to save movie to cache: {e}")
             return False
 
-    def get_movie_from_db(self, search_term: str) -> dict[str, Any] | None:
+    def get_movie(self, search_term: str) -> dict[str, Any] | None:
         """Load a movie cache entry by search term.
 
         Args:
@@ -159,6 +160,40 @@ class MovieCacheDatabase:
         except sqlite3.Error as e:
             logging.error(f"Failed to read movie from cache: {e}")
             return None
+
+    def get_movie_from_db(self, search_term: str) -> dict[str, Any] | None:
+        """Load a movie cache entry by search term.
+
+        This alias keeps older callers working while the shorter method name is
+        preferred for new code.
+
+        Args:
+            search_term: Original user/Kodi search term.
+
+        Returns:
+            dict | None: Cached movie metadata, or None when no entry exists.
+        """
+        return self.get_movie(search_term)
+
+    def save_movie_to_db(
+        self,
+        search_term: str,
+        movie_info: Mapping[str, Any] | None,
+    ) -> bool:
+        """Save or update a movie cache entry.
+
+        This alias keeps older callers working while the shorter method name is
+        preferred for new code.
+
+        Args:
+            search_term: Original user/Kodi search term. Used as the cache key.
+            movie_info: Movie metadata dictionary returned by the requester.
+
+        Returns:
+            bool: True when the entry was saved, False for invalid input or a
+            database error.
+        """
+        return self.save_movie(search_term, movie_info)
 
     def cleanup_cache(self, days_to_keep: int = 30) -> None:
         """Delete cache entries older than the configured age.

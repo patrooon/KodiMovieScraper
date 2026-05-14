@@ -234,12 +234,14 @@ def test_get_movie_info_uses_first_candidate_that_is_a_film(monkeypatch):
     result = requester.get_movie_info("Dune")
 
     assert calls == ["Dune (film)"]
-    assert result == {
+    assert isinstance(result, wiki.MovieInfo)
+    assert result.to_dict() == {
         "id": "QFilm",
         "title": "Dune (film)",
         "summary": "A film adaptation.",
         "thumbnail": "https://img/Dune.jpg",
         "wikidata_id": "QFilm",
+        "search_term": None,
     }
 
 

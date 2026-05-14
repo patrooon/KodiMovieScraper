@@ -38,8 +38,8 @@ def test_save_and_get_movie_round_trip(monkeypatch, tmp_path):
         "thumbnail": "https://example.com/image.jpg",
     }
 
-    saved = db.save_movie_to_db("example", movie_info)
-    result = db.get_movie_from_db("example")
+    saved = db.save_movie("example", movie_info)
+    result = db.get_movie("example")
 
     assert saved is True
     assert result == {
@@ -54,16 +54,16 @@ def test_save_and_get_movie_round_trip(monkeypatch, tmp_path):
 def test_save_movie_rejects_empty_inputs(monkeypatch, tmp_path):
     db, _ = use_temp_db(monkeypatch, tmp_path)
 
-    assert db.save_movie_to_db("", {"title": "No key"}) is False
-    assert db.save_movie_to_db("missing-info", None) is False
-    assert db.save_movie_to_db("missing-title", {"summary": "No title"}) is False
-    assert db.get_movie_from_db("") is None
+    assert db.save_movie("", {"title": "No key"}) is False
+    assert db.save_movie("missing-info", None) is False
+    assert db.save_movie("missing-title", {"summary": "No title"}) is False
+    assert db.get_movie("") is None
 
 
 def test_save_movie_replaces_existing_search_term(monkeypatch, tmp_path):
     db, _ = use_temp_db(monkeypatch, tmp_path)
 
-    db.save_movie_to_db(
+    db.save_movie(
         "same search",
         {
             "wikidata_id": "Q1",
@@ -72,7 +72,7 @@ def test_save_movie_replaces_existing_search_term(monkeypatch, tmp_path):
             "thumbnail": "old.jpg",
         },
     )
-    db.save_movie_to_db(
+    db.save_movie(
         "same search",
         {
             "wikidata_id": "Q2",
@@ -82,7 +82,7 @@ def test_save_movie_replaces_existing_search_term(monkeypatch, tmp_path):
         },
     )
 
-    result = db.get_movie_from_db("same search")
+    result = db.get_movie("same search")
 
     assert result["wikidata_id"] == "Q2"
     assert result["title"] == "New Title"
@@ -93,7 +93,7 @@ def test_save_movie_replaces_existing_search_term(monkeypatch, tmp_path):
 def test_get_movie_returns_none_for_unknown_search_term(monkeypatch, tmp_path):
     db, _ = use_temp_db(monkeypatch, tmp_path)
 
-    assert db.get_movie_from_db("not cached") is None
+    assert db.get_movie("not cached") is None
 
 
 def test_cleanup_cache_removes_only_expired_entries(monkeypatch, tmp_path):
@@ -102,7 +102,7 @@ def test_cleanup_cache_removes_only_expired_entries(monkeypatch, tmp_path):
     fake_now = 1_700_000_000
     monkeypatch.setattr("database.database.time.time", lambda: fake_now)
 
-    db.save_movie_to_db(
+    db.save_movie(
         "fresh",
         {
             "wikidata_id": "QFresh",
@@ -127,5 +127,5 @@ def test_cleanup_cache_removes_only_expired_entries(monkeypatch, tmp_path):
 
     db.cleanup_cache(days_to_keep=30)
 
-    assert db.get_movie_from_db("fresh")["title"] == "Fresh Movie"
-    assert db.get_movie_from_db("old") is None
+    assert db.get_movie("fresh")["title"] == "Fresh Movie"
+    assert db.get_movie("old") is None

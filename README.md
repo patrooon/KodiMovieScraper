@@ -24,6 +24,12 @@ python -m pip install -e ".[dev]"
 Run the interactive movie lookup:
 
 ```bash
+movie-scraper
+```
+
+You can also run the module directly:
+
+```bash
 python3.11 -m wiki_page_request.wiki_page_request
 ```
 
@@ -60,7 +66,7 @@ python3.11 -m ruff format .
 database/
   database.py          SQLite cache class
 wiki_page_request/
-  wiki_page_request.py Wikipedia/Wikidata requester class and CLI entry point
+  wiki_page_request.py Wikipedia/Wikidata requester, MovieInfo model, and CLI
 utests/
   test_database.py
   test_wiki_page_request.py

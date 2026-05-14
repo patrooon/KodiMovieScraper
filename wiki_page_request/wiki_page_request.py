@@ -38,6 +38,45 @@ class WikipediaRequestConfig:
     timeout: float = 10.0
 
 
+@dataclass(frozen=True)
+class MovieInfo(Mapping[str, Any]):
+    """Normalized movie metadata returned by the requester."""
+
+    title: str
+    wikidata_id: str | None = None
+    summary: str | None = None
+    thumbnail: str | None = None
+    search_term: str | None = None
+
+    @property
+    def id(self) -> str | None:
+        """Backward-compatible alias for the Wikidata ID."""
+        return self.wikidata_id
+
+    def __getitem__(self, key: str) -> Any:
+        """Return field values using dictionary-style access."""
+        return self.to_dict()[key]
+
+    def __iter__(self):
+        """Iterate over dictionary-style field names."""
+        return iter(self.to_dict())
+
+    def __len__(self) -> int:
+        """Return the number of dictionary-style fields."""
+        return len(self.to_dict())
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert movie metadata to the cache/API dictionary shape."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "summary": self.summary,
+            "thumbnail": self.thumbnail,
+            "wikidata_id": self.wikidata_id,
+            "search_term": self.search_term,
+        }
+
+
 class WikipediaMovieRequester:
     """Fetches movie information from Wikipedia/Wikidata and formats it for display."""
 
@@ -186,14 +225,14 @@ class WikipediaMovieRequester:
 
         return False
 
-    def get_movie_info(self, title: str) -> dict[str, Any] | None:
+    def get_movie_info(self, title: str) -> MovieInfo | None:
         """Find the best matching film page and return normalized movie data.
 
         Args:
             title: Movie title entered by the user.
 
         Returns:
-            dict | None: Normalized movie data with title, summary, thumbnail,
+            MovieInfo | None: Normalized movie data with title, summary, thumbnail,
             and Wikidata ID. Returns None when no film candidate is found.
         """
         candidates = [f"{title} (film)"] + self.search_wikipedia(title)
@@ -208,13 +247,12 @@ class WikipediaMovieRequester:
             if self.is_film(wikidata_id):
                 pageprops = page.get("pageprops", {})
 
-                return {
-                    "id": wikidata_id,
-                    "title": page.get("title"),
-                    "summary": page.get("extract"),
-                    "thumbnail": self.get_image_url(pageprops.get("page_image")),
-                    "wikidata_id": wikidata_id,
-                }
+                return MovieInfo(
+                    title=page.get("title") or candidate,
+                    wikidata_id=wikidata_id,
+                    summary=page.get("extract"),
+                    thumbnail=self.get_image_url(pageprops.get("page_image")),
+                )
 
         return None
 
@@ -302,11 +340,16 @@ Summary:
             print("No movie found.")
             return
 
-        self.cache.save_movie_to_db(movie_title, info)
-        cached_info = self.cache.get_movie_from_db(movie_title)
+        self.cache.save_movie(movie_title, info)
+        cached_info = self.cache.get_movie(movie_title)
         print(self.format_movie_info(cached_info))
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Run the command-line entry point."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     WikipediaMovieRequester().run_cli()
+
+
+if __name__ == "__main__":
+    main()
