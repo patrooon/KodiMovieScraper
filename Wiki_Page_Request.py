@@ -1,4 +1,5 @@
 import logging
+import textwrap
 
 import requests
 
@@ -145,6 +146,30 @@ def get_image_url(filename):
         return None
 
 
+def format_movie_info(movie_info):
+    title = movie_info.get("title") or "Unknown title"
+    summary = movie_info.get("summary") or "No summary available."
+    thumbnail = movie_info.get("thumbnail") or "No thumbnail available."
+    wikidata_id = movie_info.get("wikidata_id") or "No Wikidata ID available."
+    search_term = movie_info.get("search_term") or "No search term available."
+
+    wrapped_summary = textwrap.fill(summary, width=88)
+
+    return f"""
+============================================================
+Movie found
+============================================================
+Title:       {title}
+Search term: {search_term}
+Wikidata ID: {wikidata_id}
+Thumbnail:   {thumbnail}
+
+Summary:
+{wrapped_summary}
+============================================================
+""".strip()
+
+
 if __name__ == "__main__":
     database.init_db()
     movie_title = input("Enter movie title: ")
@@ -156,4 +181,4 @@ if __name__ == "__main__":
     else:
         database.save_movie_to_db(movie_title, info)
         d = database.get_movie_from_db(movie_title)
-        print(d.get("title"))
+        print(format_movie_info(d))
