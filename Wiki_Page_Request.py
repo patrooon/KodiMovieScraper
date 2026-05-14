@@ -1,5 +1,5 @@
 import requests
-
+import database
 WIKI_API_URL = "https://en.wikipedia.org/w/api.php"
 
 HEADERS = {
@@ -87,6 +87,7 @@ def get_movie_info(title):
         if is_film(wikidata_id):
             #print(page) #all the data from the request
             return {
+                "id":wikidata_id,
                 "title": page.get("title"),
                 "summary": page.get("extract"),
                 "thumbnail": get_image_url(page.get("pageprops").get("page_image")),
@@ -118,6 +119,7 @@ def get_image_url(filename):
 
 
 if __name__ == "__main__":
+    database.init_db()
     movie_title = input("Enter movie title: ")
 
     info = get_movie_info(movie_title)
@@ -125,7 +127,6 @@ if __name__ == "__main__":
     if not info:
         print("No movie found.")
     else:
-        print("\nTitle:", info["title"])
-        print("\nSummary:\n", info["summary"][:500], "...")
-        print("\nThumbnail:", info["thumbnail"])
-        print("\nWikidata ID:", info["wikidata_id"])
+        database.save_movie_to_db(movie_title,info)
+        d=database.get_movie_from_db(movie_title)
+        print(d.get("title"))
