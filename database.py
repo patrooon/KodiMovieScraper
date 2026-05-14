@@ -2,11 +2,12 @@ import sqlite3
 import time
 import logging
 from contextlib import closing
+from pathlib import Path
 
 # ==========================================
 # KONFIGURATION & SQL-KONSTANTEN
 # ==========================================
-DB_NAME = 'wikipedia_cache.db'
+DB_NAME = Path(__file__).with_name("wikipedia_cache.db")
 
 SQL_CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS movie_cache (
@@ -42,7 +43,7 @@ WHERE last_updated < ?;
 
 def get_connection():
     """Erstellt eine threadsichere Verbindung mit Timeout."""
-    return sqlite3.connect(DB_NAME, timeout=10.0, check_same_thread=False)
+    return sqlite3.connect(str(DB_NAME), timeout=10.0, check_same_thread=False)
 
 
 def init_db():
