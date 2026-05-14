@@ -3,8 +3,8 @@
 from .wiki_page_request import (
     HEADERS,
     WIKI_API_URL,
-    WikipediaRequestConfig,
     WikipediaMovieRequester,
+    WikipediaRequestConfig,
 )
 
 __all__ = [

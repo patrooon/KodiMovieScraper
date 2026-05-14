@@ -1,7 +1,7 @@
 """Unit tests for the Wikipedia movie requester package."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
