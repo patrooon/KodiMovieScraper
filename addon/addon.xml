@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="script.kodimoviescraper" name="Kodi Movie Scraper" version="0.1.3" provider-name="Pedram">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+        <import addon="script.module.requests" version="2.22.0"/>
+    </requires>
+    <extension point="xbmc.python.script" library="default.py">
+        <provides>executable</provides>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en_GB">Wikipedia/Wikidata movie lookup</summary>
+        <description lang="en_GB">Searches Wikipedia and Wikidata for matching movies, lets you choose one, and displays title, Wikidata ID, thumbnail URL and summary.</description>
+        <platform>all</platform>
+        <license>MIT</license>
+    </extension>
+</addon>

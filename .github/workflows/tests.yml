@@ -23,6 +23,8 @@ jobs:
       - name: Compile Python files
         run: |
           python -m py_compile \
+            build_kodi_addon.py \
+            addon/default.py \
             database/database.py \
             database/__init__.py \
             wiki_page_request/wiki_page_request.py \

@@ -256,6 +256,50 @@ class WikipediaMovieRequester:
 
         return None
 
+    def get_movie_infos(self, title: str, limit: int = 15) -> list[MovieInfo]:
+        """Find film candidates for a title.
+
+        Args:
+            title: Movie title entered by the user.
+            limit: Maximum number of film candidates to return.
+
+        Returns:
+            list[MovieInfo]: Matching film candidates. The list is empty when
+            no film candidate is found.
+        """
+        candidates = [f"{title} (film)"] + self.search_wikipedia(title)
+        movies = []
+        seen_titles = set()
+
+        for candidate in candidates:
+            if len(movies) >= limit:
+                break
+
+            page = self.get_page_data(candidate)
+            if not page:
+                continue
+
+            page_title = page.get("title") or candidate
+            if page_title in seen_titles:
+                continue
+
+            wikidata_id = page.get("pageprops", {}).get("wikibase_item")
+            if not self.is_film(wikidata_id):
+                continue
+
+            pageprops = page.get("pageprops", {})
+            movies.append(
+                MovieInfo(
+                    title=page_title,
+                    wikidata_id=wikidata_id,
+                    summary=page.get("extract"),
+                    thumbnail=self.get_image_url(pageprops.get("page_image")),
+                )
+            )
+            seen_titles.add(page_title)
+
+        return movies
+
     def get_image_url(self, filename: str | None) -> str | None:
         """Resolve a Wikipedia image filename to a public image URL.
 

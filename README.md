@@ -36,6 +36,20 @@ python3.11 -m wiki_page_request.wiki_page_request
 The script prints the movie title, search term, Wikidata ID, thumbnail URL, and
 summary. Cached entries are stored in `wikipedia_cache.db` at the project root.
 
+## Kodi Addon Zip
+
+Build a Kodi-installable addon archive:
+
+```bash
+python3.11 build_kodi_addon.py
+```
+
+Upload this generated file to Kodi:
+
+```text
+build/script.kodimoviescraper.zip
+```
+
 ## Tests
 
 Run the unit tests:

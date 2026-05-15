@@ -258,6 +258,43 @@ def test_get_movie_info_returns_none_when_no_candidate_is_a_film(monkeypatch):
     assert requester.get_movie_info("Something") is None
 
 
+def test_get_movie_infos_returns_multiple_unique_film_candidates(monkeypatch):
+    requester = wiki.WikipediaMovieRequester()
+    monkeypatch.setattr(requester, "search_wikipedia", lambda title: ["Novel", "Dune", "Dune"])
+
+    pages = {
+        "Dune (film)": {
+            "title": "Dune",
+            "extract": "First film.",
+            "pageprops": {"wikibase_item": "QFilm1", "page_image": "Dune.jpg"},
+        },
+        "Novel": {
+            "title": "Dune novel",
+            "extract": "Not a film.",
+            "pageprops": {"wikibase_item": "QBook"},
+        },
+        "Dune": {
+            "title": "Dune",
+            "extract": "Duplicate title.",
+            "pageprops": {"wikibase_item": "QFilm2", "page_image": "Dune2.jpg"},
+        },
+    }
+
+    monkeypatch.setattr(requester, "get_page_data", lambda title: pages.get(title))
+    monkeypatch.setattr(requester, "is_film", lambda wikidata_id: wikidata_id != "QBook")
+    monkeypatch.setattr(
+        requester,
+        "get_image_url",
+        lambda filename: f"https://img/{filename}",
+    )
+
+    movies = requester.get_movie_infos("Dune", limit=15)
+
+    assert len(movies) == 1
+    assert movies[0].title == "Dune"
+    assert movies[0].wikidata_id == "QFilm1"
+
+
 def test_format_movie_info_includes_all_cached_fields_and_fallbacks():
     requester = wiki.WikipediaMovieRequester()
 
