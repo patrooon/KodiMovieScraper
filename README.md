@@ -10,7 +10,7 @@ Create and activate a virtual environment, then install the project dependencies
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python3.11 -m pip install -r requirements.txt
 ```
 
 For editable project installs with development tools:
