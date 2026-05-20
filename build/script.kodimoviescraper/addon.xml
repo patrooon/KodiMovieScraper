@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="script.kodimoviescraper" name="Movie Scraper" version="1.0.1" provider-name="Ahta">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>  
+    </requires>
+    <extension point="xbmc.python.script" library="default.py">
+        <provides>executable</provides>
+    </extension>
+
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en_GB">Wikipedia/Wikidata movie lookup</summary>
+        <description lang="en_GB">Searches Wikipedia and Wikidata for matching movies, lets you choose one, and displays title, Wikidata ID, thumbnail URL and summary.</description>
+        <platform>all</platform>
+        <license>MIT</license>
+        <assets>
+            <icon>icon.png</icon>
+        </assets>
+    </extension>
+</addon>
